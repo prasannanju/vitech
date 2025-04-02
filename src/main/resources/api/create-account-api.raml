@@ -1,0 +1,45 @@
+#%RAML 1.0
+title: create-account-api
+description: To create the customer account
+securitySchemes:
+  secure: !include /security/securityScheme.raml
+  
+version: v1
+protocols:
+  - HTTP
+  - HTTPS
+securedBy:
+  - secure
+/createAccount:
+  post:
+    queryParameters:
+      customerName:
+        required: true
+        minLength: 4
+        maxLength: 45
+      bank:
+        required: true
+        enum:
+          - ICICI
+          - SBI
+          - AXIS
+      type:
+        required: true
+        enum:
+          - savings
+          - current
+      branchName:
+        required: true
+        minLength: 4
+        maxLength: 40
+    body:
+      application/json:
+        type: !include /dataTypes/dataType.raml
+        example: !include /examples/example.raml
+    responses:
+      201:
+        body:
+          application/json:
+            example:
+              {"status" : “Account Created Successfully with Account Number 1234567897”}
+      

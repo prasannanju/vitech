@@ -1,0 +1,15 @@
+http:
+ port: "8084"
+ 
+db:
+ username: "system"
+ password: "Krishraj@09"
+ host:      "localhost"
+ port:      "1521"
+ 
+ 
+email:
+ host: "smtp.gmail.com"
+ username: "anjanikalgikar@gmail.com"
+ password: "lyzgnjoipfjxbpoa"
+ port: "25"

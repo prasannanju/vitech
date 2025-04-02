@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd">
+    <http:listener-config name="create-account-api-httpListenerConfig">
+        <http:listener-connection host="0.0.0.0" port="${http.port}" />
+    </http:listener-config>
+    <apikit:config name="create-account-api-config" api="create-account-api.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <db:config name="Database_Config" doc:name="Database Config" doc:id="de1e817e-e4b6-4355-ad80-66dfe146084f" >
+		<db:oracle-connection host="${db.host}" port="${db.port}" user="${db.username}" password="${db.password}" />
+	</db:config>
+	<configuration-properties doc:name="Configuration properties" doc:id="0cf52ce6-c706-4076-b5d6-effb13315282" file="myconfig-dev.yaml" />
+	<flow name="create-account-api-main">
+        <http:listener config-ref="create-account-api-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="create-account-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="create-account-api-console">
+        <http:listener config-ref="create-account-api-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="create-account-api-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform>
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="post:\createAccount:application\json:create-account-api-config">
+        <set-variable value="#[attributes.queryParams.customerName]" doc:name="custName" doc:id="f8619c8d-fca6-4aa8-9482-2a88d0043e0f" variableName="custName"/>
+		<set-variable value="#[attributes.queryParams.bank]" doc:name="bank" doc:id="c06e05e5-c464-408b-8a8f-40ae4eb16d11" variableName="bank"/>
+		<set-variable value='#[attributes.queryParams."type"]' doc:name="type" doc:id="d0a5a69b-defd-4dc8-a0b9-0e789a82c6da" variableName="type"/>
+		<set-variable value="#[attributes.queryParams.branchName]" doc:name="branchName" doc:id="ca3c2e95-3925-46c5-98ba-f30e0bf91448" variableName="branchName"/>
+		<set-variable value="#[[]]" doc:name="emptyList" doc:id="5d5fbc32-e211-4100-a982-b739f05a27b8" variableName="inpPayload"/>
+		<set-variable value="#[%dw 2.0&#10;output application/json&#10;---&#10;vars.inpPayload &lt;&lt; payload]" doc:name="inpPayload" doc:id="815246d7-f3e5-46bc-9ed9-6fc475c3e0c1" variableName="inpPayload"/>
+		<db:select doc:name="Select" doc:id="db900077-4233-4047-8aa8-4f61de6efd97" config-ref="Database_Config">
+			<db:sql ><![CDATA[select custAccNum,bankName from Bank_transactions where custAccNum=:custAccNum and bankName=:bankName]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	custAccNum: payload.accountNum,
+	bankName: attributes.queryParams.bank
+}]]]></db:input-parameters>
+		</db:select>
+		<choice doc:name="Choice" doc:id="df11e897-1811-4085-b72c-930a1a2b3164" >
+			<when expression="#[sizeOf(payload)&gt;0]">
+				<ee:transform doc:name="Transform Message" doc:id="497005eb-5aa3-4ace-a3a2-740969d2bfdf" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+"Account already exists"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise >
+				<db:insert doc:name="Insert" doc:id="6bcda0c4-4fa9-4689-a2d2-3a145a4fa83f" config-ref="Database_Config">
+					<db:sql ><![CDATA[insert into bank_transactions(cid,custname,custaccnum,atmpin,bankname,accountType,ifsccode,branchName,transactionTimestamp,mailId,phoneNumber) values(:cid,:custname,:custaccnum,:atmpin,:bankname,:accountType,:ifsccode,:branchName,:transactionTimestamp,:mailId,:phoneNumber)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{
+	(vars.inpPayload map {
+"cid": $.cid,	
+"custname": vars.custName,
+"custaccnum":$.accountNum ,
+"atmpin": $.atmPin,
+"bankname": vars.bank ,
+"accountType": vars."type",
+"ifsccode": $.ifscCode,
+"branchName": vars.branchName,
+"transactionTimestamp": now(),
+"mailId": $.mailId,
+"phoneNumber": $.contact
+})
+}]]]></db:input-parameters>
+				</db:insert>
+				<flow-ref doc:name="Flow Reference" doc:id="985b68aa-f650-4dc2-902b-386102c59ed3" name="create-account-apiFlow-Email-Notification"/>
+				<ee:transform doc:name="Transform Message" doc:id="455c798f-ae7f-4912-82d3-12e6f6ce9320" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+"Account created successfully"]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+    </flow>
+	<flow name="create-account-apiFlow-Email-Notification" doc:id="133630eb-b529-4b23-a39a-554032bd4ad5" >
+		<logger level="INFO" doc:name="Logger" doc:id="0f9c5a4c-fa5a-4749-b528-1eda042bbf1a" message="--------Before sending the email-------------"/>
+		<logger level="INFO" doc:name="Logger" doc:id="506e4aa8-7900-43da-bf21-124f48cc4e83" message="-------The email is sent------------"/>
+	</flow>
+</mule>
